@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 import * as fs   from 'fs';
 import * as path from 'path';
 
+import * as config from './configreader'
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
@@ -46,11 +47,46 @@ export function deactivate() {
  */
 class PeekFileDefinitionProvider implements vscode.DefinitionProvider {
    protected fileSearchExtensions: string[] = [];
+   private watchConfig: { watcher: vscode.FileSystemWatcher; configMap: Map<string, Map<string, string[]>>; configList: string[]; };
 
    constructor(fileSearchExtensions: string[] = []) {
       this.fileSearchExtensions = fileSearchExtensions;
+      config.watchConfig().then( it =>
+         this.watchConfig = it
+      );
    }
 
+   getPotentialAliasedPaths(lookupPath: string, working_dir: vscode.Uri): string[] {
+      // working_dir.dir
+
+      // let workingUri = working_dir.path.replace(/\/[^\/]*$/, '/');
+
+      let workingPath = path.dirname(working_dir.fsPath) + path.sep;
+      // let full_path   = path.resolve(working_dir, lookupPath);
+
+      let aliasedPath = [];
+
+      outerFor:
+      for (let cfg of this.watchConfig.configList) {
+         if (!workingPath.startsWith(cfg)) {
+            continue;
+         }
+         let cfgPaths = this.watchConfig.configMap.get(cfg);
+         cfgPaths.forEach((v, k) => {})
+         for (let cfgPath of cfgPaths.keys()) {
+            if (lookupPath.startsWith(cfgPath)) {
+               console.log(lookupPath, cfgPath);
+               let newPath = lookupPath.substring(cfgPath.length);
+               aliasedPath = cfgPaths.get(cfgPath).map(
+                  it => path.resolve(cfg, it, newPath)
+               )
+               break outerFor;
+            }
+         }
+      }
+      aliasedPath.push(path.resolve(workingPath, lookupPath));
+      return aliasedPath.flatMap(this.getPotentialPaths.bind(this))
+   }
    /**
     * Return list of potential paths to check
     * based upon file search extensions for a potential lookup.
@@ -112,18 +148,17 @@ class PeekFileDefinitionProvider implements vscode.DefinitionProvider {
          if((position.character >= match_start) &&
             (position.character <= match_end))
          {
-            let full_path   = path.resolve(working_dir, potential_fname);
             //console.log(" Match: ", match);
             //console.log(" Fname: " + potential_fname);
             //console.log("  Full: " + full_path);
 
             // Find all potential paths to check and return the first one found
-            let potential_fnames = this.getPotentialPaths(full_path);
+            let potential_fnames = this.getPotentialAliasedPaths(potential_fname, document.uri);
             //console.log(" potential fnames: ", potential_fnames);
 
             let found_fname = potential_fnames.find((fname_full) => {
                //console.log(" checking: ", fname_full);
-               return fs.existsSync(fname_full);
+               return fs.existsSync(fname_full) && !fs.lstatSync(fname_full).isDirectory();
             });
             if (found_fname != null) {
                console.log('found: ' + found_fname);

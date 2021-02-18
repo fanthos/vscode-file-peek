@@ -1,14 +1,16 @@
 {
 	"compilerOptions": {
 		"module": "commonjs",
-		"target": "es5",
+		"target": "es6",
 		"outDir": "out",
-		"noLib": true,
+		// "noLib": true,
+		"lib": ["ESNext", "DOM"],
 		"sourceMap": true,
-        "rootDir": "."
+		"rootDir": "."
 	},
 	"exclude": [
 		"node_modules",
-		"test/test_files/issue_2"
+		"test/test_files/issue_2",
+		".history"
 	]
 }
