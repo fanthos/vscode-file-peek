@@ -75,17 +75,22 @@ class PeekFileDefinitionProvider implements vscode.DefinitionProvider {
          cfgPaths.forEach((v, k) => {})
          for (let cfgPath of cfgPaths.keys()) {
             if (lookupPath.startsWith(cfgPath)) {
-               console.log(lookupPath, cfgPath);
+               // console.log(lookupPath, cfgPath);
                let newPath = lookupPath.substring(cfgPath.length);
                aliasedPath = cfgPaths.get(cfgPath).map(
-                  it => path.resolve(cfg, it, newPath)
+                  it => path.join(cfg, it, newPath)
                )
                break outerFor;
             }
          }
       }
-      aliasedPath.push(path.resolve(workingPath, lookupPath));
-      return aliasedPath.flatMap(this.getPotentialPaths.bind(this))
+      aliasedPath.push(path.join(workingPath, lookupPath));
+
+      let newFiles = [];
+      for (let path of aliasedPath) {
+         newFiles.push.apply(newFiles, this.getPotentialPaths(path));
+      }
+      return Array.from(new Set(newFiles));
    }
    /**
     * Return list of potential paths to check
@@ -117,9 +122,9 @@ class PeekFileDefinitionProvider implements vscode.DefinitionProvider {
       return potential_paths;
    }
 
-   provideDefinition(document: vscode.TextDocument,
+   async provideDefinition(document: vscode.TextDocument,
                      position: vscode.Position,
-                     token: vscode.CancellationToken): vscode.Definition {
+                     token: vscode.CancellationToken): Promise<vscode.Definition> {
       // todo: make this method operate async
       let working_dir = path.dirname(document.fileName);
       let word        = document.getText(document.getWordRangeAtPosition(position));
@@ -156,14 +161,29 @@ class PeekFileDefinitionProvider implements vscode.DefinitionProvider {
             let potential_fnames = this.getPotentialAliasedPaths(potential_fname, document.uri);
             //console.log(" potential fnames: ", potential_fnames);
 
-            let found_fname = potential_fnames.find((fname_full) => {
-               //console.log(" checking: ", fname_full);
-               return fs.existsSync(fname_full) && !fs.lstatSync(fname_full).isDirectory();
-            });
-            if (found_fname != null) {
-               console.log('found: ' + found_fname);
-               return new vscode.Location(vscode.Uri.file(found_fname), new vscode.Position(0, 1));
+            let results: vscode.Location[] = [];
+
+            for (let fname_full of potential_fnames) {
+               try {
+                  let stat = await fs.promises.stat(fname_full);
+                  if (!stat.isDirectory()) {
+                     results.push(new vscode.Location(vscode.Uri.file(fname_full), new vscode.Position(0,1)));
+                  }
+               } catch {}
             }
+            if (results.length > 1) {
+               console.log(results);
+            }
+            return results;
+            // let results = (await Promise.all(potential_fnames.map(async (fname_full) => {
+            //    //console.log(" checking: ", fname_full);
+            //    return (await fs.existsSync(fname_full)) && !fs.lstatSync(fname_full).isDirectory() ? fname_full : false;
+            // }))).filter(x => x);
+            // console.log(results);
+            // if (found_fname != null) {
+            //    console.log('found: ' + found_fname);
+            //    return new vscode.Location(vscode.Uri.file(found_fname), new vscode.Position(0, 1));
+            // }
          }
       }
 

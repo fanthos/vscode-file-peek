@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import * as path from "path";
 
 function createWatcher(glob:string, callback: (uri : vscode.Uri) => any) {
 	let watcher = vscode.workspace.createFileSystemWatcher(glob);
@@ -27,7 +28,8 @@ export async function watchConfig() {
 	async function updateConfigFile(...fileNames: vscode.Uri[]) {
 		for (let uri of fileNames) {
 			// configMap.set(uri.path, "test");
-			let filePath = uri.fsPath.replace(/[jt]sconfig.json$/, '');
+			// let filePath = uri.fsPath.replace(/[jt]sconfig.json$/, '');
+			let filePath = path.dirname(uri.fsPath);
 			let textDoc
 			try {
 				textDoc = await vscode.workspace.openTextDocument(uri);
