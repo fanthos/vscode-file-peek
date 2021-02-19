@@ -4,7 +4,7 @@ This extension extends Typescript and Javascript code editing with `Go To Defini
 
 I created this extension for use with Angular 2 component definitions. The idea is to allow quickly jumping to or peeking into files that are referenced from your source.  For example if there is an html or css file referenced this will allow jumping to that file as the "definition" of the string name of the file in the source code.
 
-![working](images/working.gif)
+![working](docs/working.gif)
 
 The extension supports all the normal capabilities of symbol definition tracking, but does it for file names.  This includes:
 
